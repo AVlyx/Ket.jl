@@ -602,9 +602,7 @@ function apply_to_subsystem_non_contiguous(
     input_dims = dims[ssys]
 
     input_size = prod(input_dims) #input size of Kraus
-    println(input_size)
     output_size = size(kraus[1], 1) #output size of Kraus
-    println(output_size)
     ρ_size = size(ρ, 1)
     Y_size = output_size * prod(dims_keep)
 
@@ -643,6 +641,52 @@ function apply_to_subsystem_non_contiguous(
     return Y
 end
 export apply_to_subsystem_non_contiguous
+
+"""
+apply_to_subsystem_non_contiguous(
+kraus::AbstractVector{<:AbstractMatrix},
+ρ::AbstractMatrix,
+ssys::AbstractVector,
+dims::AbstractVector = _equal_sizes(ρ)
+Apply the operators `kraus` on the subsytems of `ρ` identified by `ssys`
+∑(Kᵢ ⊗ I) * ρ * (Kᵢ ⊗ I)†
+Returns a 2 subsystems state where the 2 second subsystem represents the output space of the Kraus operators.
+"""
+function apply_to_subsystem_non_contiguous(
+    kraus::AbstractVector{<:SA.AbstractSparseArray},
+    ρ::SA.AbstractSparseArray,
+    ssys::AbstractVector{<:Integer},
+    dims::AbstractVector{<:Integer} = _equal_sizes(ρ)
+)
+    @assert !isempty(ssys)
+
+    nsys = length(dims)
+    keep = _subsystems_complement(ssys, nsys)
+
+    dims_keep = dims[keep]
+    input_dims = dims[ssys]
+
+    input_size = prod(input_dims) #input size of Kraus
+    output_size = size(kraus[1], 1) #output size of Kraus
+    kept_size = prod(dims_keep)
+    ρ_size = size(ρ, 1)
+    Y_size = output_size * prod(dims_keep)
+
+    @assert prod(dims) == ρ_size "dimensions do not match with ρ"
+    @assert all([size(k, 2) == input_size for k ∈ kraus]) "dimensions do not match with kraus operators"
+    @assert all([size(k, 1) == output_size for k ∈ kraus]) "dimensions do not match with kraus operators"
+
+    perm = vcat(keep, ssys)
+    ρ_perm = permute_systems(ρ, perm, dims)
+    Y = zeros(eltype(ρ), Y_size, Y_size)
+    interm = similar(ρ, output_size * kept_size, input_size * kept_size)
+    for k ∈ kraus
+        k_kron = kron(I(prod(dims_keep)), k)
+        @views mul!(interm, k_kron, ρ_perm)
+        Y .+= interm * k_kron'
+    end
+    return SA.sparse(Y)
+end
 
 """
 apply_to_subsystem_non_contiguous(

@@ -90,14 +90,14 @@
                 @test apply_to_subsystem([op2], SparseM, [3, 1, 4, 2], [3, 3, 3, 3]) ≈
                       apply_to_subsystem([op2], StdM, [3, 1, 4, 2], [3, 3, 3, 3])
             end
-            # for wrapper ∈ (Symmetric, Hermitian)
-            #     a = randn(ComplexF64, d1, d1)
-            #     b = randn(ComplexF64, d1 * d3, d1 * d3)
-            #     M = wrapper(randn(ComplexF64, (d1 * d2 * d3, d1 * d2 * d3)))
-            #     x = Matrix(M)
-            #     @test apply_to_subsystem([a], M, 1, [2, 2, 3]) ≈ apply_to_subsystem([a], x, 1, [2, 2, 3])
-            #     @test apply_to_subsystem([b], M, [1, 3], [2, 2, 3]) ≈ apply_to_subsystem([b], x, [1, 3], [2, 2, 3])
-            # end
+            for wrapper ∈ (Symmetric, Hermitian)
+                a = randn(ComplexF64, d1, d1)
+                b = randn(ComplexF64, d1 * d3, d1 * d3)
+                M = wrapper(randn(ComplexF64, (d1 * d2 * d3, d1 * d2 * d3)))
+                x = Matrix(M)
+                @test apply_to_subsystem([a], M, 1, [2, 2, 3]) ≈ apply_to_subsystem([a], x, 1, [2, 2, 3])
+                @test apply_to_subsystem([b], M, [1, 3], [2, 2, 3]) ≈ apply_to_subsystem([b], x, [1, 3], [2, 2, 3])
+            end
         end
         @testset "Rectangular matrices       " begin
             model = JuMP.Model()
@@ -147,16 +147,14 @@
                       a *
                       permute_systems(kron(k6, I2), [1, 3, 2], [3 2; 3 2; 2 2])'
 
-                # #sparse arrays
-                # d = 3^4
-                # SparseM = SparseArrays.spdiagm(-1 => randn(T, d - 1), 1 => randn(T, d - 1))
-                # StdM = Matrix(SparseM)
-                # op1 = randn(T, 3^2, 3^2)
-                # op2 = randn(T, d, d)
-                # @test apply_to_subsystem([op1], SparseM, [3, 1], [3, 3, 3, 3]) ≈
-                #       apply_to_subsystem([op1], StdM, [3, 1], [3, 3, 3, 3])
-                # @test apply_to_subsystem([op2], SparseM, [3, 1, 4, 2], [3, 3, 3, 3]) ≈
-                #       apply_to_subsystem([op2], StdM, [3, 1, 4, 2], [3, 3, 3, 3])
+                #sparse arrays
+                d = 3^4
+                SparseM = SparseArrays.spdiagm(-1 => randn(T, d - 1), 1 => randn(T, d - 1))
+                StdM = Matrix(SparseM)
+                k1 = sparse(randn(T, 2^2, 3^2))
+                k2 = sparse(randn(T, 2^2, 3^2))
+                @test apply_to_subsystem([k1, k2], SparseM, [3, 1], [3, 3, 3, 3], [2, 2]) ≈
+                      apply_to_subsystem([k1, k2], StdM, [3, 1], [3, 3, 3, 3], [2, 2])
             end
         end
     end
@@ -202,6 +200,15 @@
                       kron(I3, k5) * permute_systems(b, [2, 1, 3], [3, 3, 3]) * kron(I3, k5)'
                 @test apply_to_subsystem_non_contiguous([k6], a, [1, 3], [2, 2, 2]) ≈
                       kron(I2, k6) * permute_systems(a, [2, 1, 3], [2, 2, 2]) * kron(I2, k6)'
+
+                #sparse arrays
+                d = 3^4
+                SparseM = SparseArrays.spdiagm(-1 => randn(T, d - 1), 1 => randn(T, d - 1))
+                StdM = Matrix(SparseM)
+                k1 = sparse(randn(T, 2^2, 3^2))
+                k2 = sparse(randn(T, 2^2, 3^2))
+                @test apply_to_subsystem_non_contiguous([k1, k2], SparseM, [3, 1], [3, 3, 3, 3]) ≈
+                      apply_to_subsystem_non_contiguous([k1, k2], StdM, [3, 1], [3, 3, 3, 3])
             end
         end
     end
